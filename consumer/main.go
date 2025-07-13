@@ -16,7 +16,7 @@ func main(){
 	msgCount := 0
 
 // create consumer then start
-	broker := []string{"locahost:9092"}
+	broker := []string{"localhost:9092"}
 	consumer, err := connectToConsumer(broker)
 	if err != nil {
 		panic(err)
@@ -40,12 +40,11 @@ func main(){
 					log.Println(err)
 				case msg := <-partConsumer.Messages():{
 					msgCount++
-					log.Println(msg)
 					order := string(msg.Value)
 					log.Printf("making coffee %s\n", order)
 				}
 				case <- sigChan: {
-					log.Panicln("interrupt detected")
+					log.Println("interrupt detected")
 					doneCh <- struct{}{}
 				}
 			}

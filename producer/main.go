@@ -84,7 +84,7 @@ func CoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
 			"success": true,
-			"msg": "order for " + order.CosName + " of type " + order.CofType + "sent successfully",
+			"msg": "order for " + order.CosName + " of type " + order.CofType + " sent successfully",
 		}
 		byteResp, err := json.Marshal(response)
 		if err!= nil {
