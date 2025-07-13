@@ -83,13 +83,19 @@ func CoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
 		// respond to user 
 		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
-			"success", true,
-			"msg": "order for " + order.CosName + " of type " + order.CofType + "sent successfully"
+			"success": true,
+			"msg": "order for " + order.CosName + " of type " + order.CofType + "sent successfully",
 		}
-		w.Write(response)
+		byteResp, err := json.Marshal(response)
+		if err!= nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(byteResp)
 		w.WriteHeader(http.StatusAccepted)
 		json.NewEncoder(w).Encode(order)
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 	}
+
 }
