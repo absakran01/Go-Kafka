@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
@@ -9,11 +10,52 @@ import (
 	"github.com/IBM/sarama"
 )
 
+
+type CoffeeOrder struct {
+	CosName string `json:"Name"`
+	CofType string `json:"Type"`
+}
+
+
+
+
 func main(){
 	// kafka topic 
 	topic := "coffee"
 
 	msgCount := 0
+
+
+
+	// connect to couchbase
+	cluster := InitDB()
+	if cluster == nil {
+		log.Fatal("Failed to connect to Couchbase Cluster")
+	}
+	// create bucket
+	bucketName := "kafka"
+	bucket := cluster.Bucket(bucketName)
+	if bucket == nil {
+		log.Fatalf("Failed to open bucket: %s", bucketName)
+	} else {
+		log.Printf("Connected to bucket: %s", bucketName)
+	}
+	//scope
+	scopeName := "kafka"
+	scope := bucket.Scope(scopeName)
+	if scope == nil { 
+		log.Fatalf("Failed to open scope: %s", scopeName)
+	} else {
+		log.Printf("Connected to scope: %s", scopeName)
+	}
+	// create collection
+	collectionName := "coffee"
+	collection := bucket.Collection(collectionName)
+	if collection == nil {
+		log.Fatalf("Failed to open collection: %s", collectionName)
+	} else {
+		log.Printf("Connected to collection: %s", collection.Name())
+	}
 
 // create consumer then start
 	broker := []string{"localhost:9092"}
@@ -40,7 +82,20 @@ func main(){
 					log.Println(err)
 				case msg := <-partConsumer.Messages():{
 					msgCount++
-					order := string(msg.Value)
+					order, err := toObj(msg.Value)
+					if err != nil { 
+						log.Println("Failed to unmarshal message:", err)
+						continue
+					}
+
+					// insert into couchbase
+					rslt, err := bucket.DefaultCollection().Upsert(order.CosName, order, nil)
+					if err != nil {
+						log.Println("Failed to insert into Couchbase:", err)
+					} else { 
+						log.Println("Inserted order into Couchbase:", rslt)
+					}
+
 					log.Printf("making coffee %s\n", order)
 				}
 				case <- sigChan: {
@@ -51,7 +106,7 @@ func main(){
 		}
 	}()
 	<-doneCh
-	log.Println("proccessed", msgCount, "maessages")
+	log.Println("processed", msgCount, "messages")
 
 // close consumers on exit
 	err = consumer.Close()
@@ -67,4 +122,16 @@ func connectToConsumer(brokerUrls []string)(sarama.Consumer, error){
 
 	consumer, err := sarama.NewConsumer(brokerUrls, &config)
 	return consumer, err
+}
+
+
+
+
+func toObj(orderJson []byte) (CoffeeOrder, error) {
+	var order CoffeeOrder
+	err := json.Unmarshal(orderJson, &order)
+	if err != nil {
+		return CoffeeOrder{}, err
+	}
+	return order, nil
 }
